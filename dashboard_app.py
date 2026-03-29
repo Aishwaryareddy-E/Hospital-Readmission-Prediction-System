@@ -1,19 +1,21 @@
 """
-HOSPITAL READMISSION PREDICTION - INTERACTIVE DASHBOARD
-========================================================
-A professional dashboard to showcase the project with visualizations,
-model predictions, and insights.
+ULTIMATE HOSPITAL READMISSION DASHBOARD - SIMPLIFIED PATIENT SEARCH
+====================================================================
+Complete interactive dashboard with simplified patient lookup:
+- Just type an age (e.g., "70-80") to see ALL patients of that age
+- Shows complete details: diabetes status, risk level, medications, etc.
 
-Run this command: streamlit run dashboard_app.py
+Run: streamlit run ultimate_dashboard.py
 """
 
 import streamlit as st
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine, text
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
 from sklearn.preprocessing import LabelEncoder
+from datetime import datetime
 import joblib
 import os
 
@@ -32,10 +34,20 @@ try:
 except Exception:
     engine = None
 
-# Load trained models
+# Load data
+@st.cache_data
+def load_data():
+    try:
+        query = "SELECT * FROM patients"
+        df = pd.read_sql_query(query, engine)
+        return df
+    except Exception:
+        # Fallback for Streamlit Cloud
+        return pd.read_csv("data/hospital_data.csv")
+
+# Load models
 @st.cache_resource
 def load_models():
-    """Load all trained ML models"""
     models = {}
     model_files = {
         'Logistic Regression': 'models/logistic_regression.pkl',
@@ -44,130 +56,131 @@ def load_models():
         'Decision Tree': 'models/decision_tree.pkl',
         'Best Model': 'models/best_model.pkl'
     }
-    
     for name, path in model_files.items():
         try:
             if os.path.exists(path):
                 models[name] = joblib.load(path)
-        except Exception as e:
+        except:
             pass
-    
     return models
 
-# Load data from database
-@st.cache_data
-def load_data():
-    """Load patient data from MySQL or fallback to CSV"""
-    try:
-        query = "SELECT * FROM patients"
-        df = pd.read_sql_query(query, engine)
-        return df
-    except Exception as e:
-        # Fallback for Streamlit Cloud deployment where localhost DB doesn't exist
-        return pd.read_csv("data/hospital_data.csv")
-
-# Sidebar
-st.sidebar.title("🏥 Hospital Readmission AI")
-st.sidebar.markdown("---")
-st.sidebar.image("https://img.icons8.com/color/96/000000/hospital.png", width=100)
-st.sidebar.title("Navigation")
-
-# Main content
-st.title("🏥 Hospital Readmission Prediction System")
-st.markdown("**An AI-Powered Healthcare Analytics Solution**")
-st.markdown("---")
-
-# Load data
 df = load_data()
 models = load_models()
 
-# Key metrics at the top
-col1, col2, col3, col4 = st.columns(4)
+# Custom CSS
+st.markdown("""
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 20px;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .metric-value {
+        font-size: 48px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .metric-label {
+        font-size: 14px;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .patient-card {
+        background: white;
+        border-left: 5px solid #667eea;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+""", unsafe_allow_html=True)
 
-with col1:
-    st.metric(
-        label="Total Patients",
-        value=f"{len(df):,}",
-        delta="Complete Dataset"
-    )
-
-with col2:
-    readmitted_count = (df['readmitted'] == 'yes').sum()
-    st.metric(
-        label="Readmitted Cases",
-        value=f"{readmitted_count:,}",
-        delta=f"{(readmitted_count/len(df)*100):.1f}% of total"
-    )
-
-with col3:
-    not_readmitted = (df['readmitted'] == 'no').sum()
-    st.metric(
-        label="Not Readmitted",
-        value=f"{not_readmitted:,}",
-        delta=f"{(not_readmitted/len(df)*100):.1f}% of total"
-    )
-
-with col4:
-    avg_stay = df['time_in_hospital'].mean()
-    st.metric(
-        label="Avg Hospital Stay",
-        value=f"{avg_stay:.1f} days",
-        delta="Across all patients"
-    )
+# Header
+col_logo, col_title = st.columns([1, 4])
+with col_logo:
+    st.image("https://img.icons8.com/color/96/000000/hospital.png", width=80)
+with col_title:
+    st.title("🏥 Hospital Readmission Prediction System")
+    st.markdown("**AI-Powered Healthcare Analytics with Live Predictions**")
 
 st.markdown("---")
 
+# Calculate metrics
+total_patients = len(df)
+readmitted = (df['readmitted'] == 'yes').sum()
+not_readmitted = (df['readmitted'] == 'no').sum()
+readmission_rate = (readmitted / total_patients) * 100
+avg_stay = df['time_in_hospital'].mean()
+high_risk = len(df[df['n_emergency'] >= 3])
+
 # Create tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Data Overview", 
     "📈 Visualizations", 
     "🤖 ML Models", 
     "🔮 Live Prediction",
-    "💡 Insights"
+    "💡 Insights",
+    "🔍 Find Patients by Age"  # SIMPLIFIED!
 ])
 
-# TAB 1: DATA OVERVIEW
+# ==================== TAB 1: DATA OVERVIEW ====================
 with tab1:
-    st.header("📊 Dataset Overview")
+    st.header("📊 Dataset Overview - 25,000 Patient Records")
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.subheader("Dataset Statistics")
-        stats_df = pd.DataFrame({
-            'Metric': ['Total Records', 'Features', 'Readmitted', 'Not Readmitted', 'Readmission Rate'],
-            'Value': [
-                f"{len(df):,}",
-                len(df.columns),
-                f"{(df['readmitted'] == 'yes').sum():,}",
-                f"{(df['readmitted'] == 'no').sum():,}",
-                f"{(df['readmitted'] == 'yes').mean()*100:.2f}%"
-            ]
-        })
-        st.dataframe(stats_df, hide_index=True, use_container_width=True)
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Total Patients</div>
+            <div class="metric-value">{total_patients:,}</div>
+            <div style="font-size: 12px;">📁 Complete Dataset</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     with col2:
-        st.subheader("Feature Summary")
-        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        st.write(f"**Numerical Features:** {len(numeric_cols)}")
-        st.write(f"**Categorical Features:** {len(df.columns) - len(numeric_cols)}")
-        
-        # Show sample data
-        st.write("**Sample Data (First 5 rows):**")
-        st.dataframe(df.head(), use_container_width=True)
+        st.markdown(f"""
+        <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="metric-label">Readmitted Cases</div>
+            <div class="metric-value">{readmitted:,}</div>
+            <div style="font-size: 12px;">{readmission_rate:.1f}% of Total</div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    st.subheader("📋 Complete Dataset")
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="metric-label">Not Readmitted</div>
+            <div class="metric-value">{not_readmitted:,}</div>
+            <div style="font-size: 12px;">{(100-readmission_rate):.1f}% of Total</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+            <div class="metric-label">Avg Hospital Stay</div>
+            <div class="metric-value">{avg_stay:.1f}</div>
+            <div style="font-size: 12px;">📅 Days per Patient</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
     st.dataframe(df, use_container_width=True, height=400)
 
-# TAB 2: VISUALIZATIONS
+# ==================== TAB 2: VISUALIZATIONS ====================
 with tab2:
     st.header("📈 Interactive Visualizations")
     
-    # Row 1: Target Distribution & Age Analysis
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Readmission Distribution")
         readmit_counts = df['readmitted'].value_counts().reset_index()
         readmit_counts.columns = ['Status', 'Count']
         
@@ -179,10 +192,10 @@ with tab2:
             color='Status',
             color_discrete_map={'yes': '#e74c3c', 'no': '#2ecc71'}
         )
+        fig_pie.update_traces(textposition='inside', textinfo='percent+label', hole=0.4)
         st.plotly_chart(fig_pie, use_container_width=True)
     
     with col2:
-        st.subheader("Age Group Distribution")
         age_counts = df['age'].value_counts().reset_index()
         age_counts.columns = ['Age Group', 'Count']
         
@@ -196,29 +209,22 @@ with tab2:
         )
         st.plotly_chart(fig_bar, use_container_width=True)
     
-    # Row 2: Emergency Visits & Medications
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Emergency Visits Impact")
-        emergency_order = sorted(df['n_emergency'].unique())
-        
         emergency_data = df.groupby(['n_emergency', 'readmitted']).size().reset_index(name='Count')
-        
         fig_emergency = px.bar(
             emergency_data,
             x='n_emergency',
             y='Count',
             color='readmitted',
             title='Emergency Visits vs Readmission',
-            labels={'n_emergency': 'Emergency Visits', 'readmitted': 'Readmitted'},
             barmode='group',
             color_discrete_sequence=['#3498db', '#e74c3c']
         )
         st.plotly_chart(fig_emergency, use_container_width=True)
     
     with col2:
-        st.subheader("Medications Distribution")
         fig_box = px.box(
             df,
             x='readmitted',
@@ -229,13 +235,10 @@ with tab2:
         )
         st.plotly_chart(fig_box, use_container_width=True)
     
-    # Row 3: Correlation Heatmap
-    st.subheader("Feature Correlation Heatmap")
+    st.subheader("🔥 Feature Correlation Heatmap")
     corr_cols = ['time_in_hospital', 'n_lab_procedures', 'n_procedures', 'n_medications', 
                  'n_outpatient', 'n_inpatient', 'n_emergency']
-    
     corr_matrix = df[corr_cols].corr()
-    
     fig_heatmap = px.imshow(
         corr_matrix,
         labels=dict(x="Features", y="Features", color="Correlation"),
@@ -247,15 +250,12 @@ with tab2:
     fig_heatmap.update_layout(height=600)
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-# TAB 3: ML MODELS
+# ==================== TAB 3: ML MODELS ====================
 with tab3:
     st.header("🤖 Machine Learning Models Performance")
     
-    # Model comparison table
-    st.subheader("Model Comparison")
-    
     model_results = pd.DataFrame({
-        'Model': ['Logistic Regression', 'Decision Tree', 'Random Forest', 'XGBoost'],
+        'Model': ['Logistic Regression ⭐', 'Decision Tree', 'Random Forest', 'XGBoost'],
         'Accuracy': ['60.94%', '54.22%', '59.22%', '58.90%'],
         'Precision': ['0.6082', '0.5133', '0.5716', '0.5683'],
         'Recall': ['0.4760', '0.5100', '0.5296', '0.5240'],
@@ -263,17 +263,10 @@ with tab3:
         'ROC-AUC': ['0.6450', '0.5405', '0.6272', '0.6278']
     })
     
-    # Highlight best model
-    st.dataframe(
-        model_results.style.highlight_max(subset=['ROC-AUC'], color='#2ecc71'),
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(model_results.style.highlight_max(subset=['ROC-AUC'], color='#2ecc71'),
+                use_container_width=True, hide_index=True)
     
     st.success("✅ **Best Model: Logistic Regression** with ROC-AUC Score of 0.6450")
-    
-    # Model performance chart
-    st.subheader("ROC-AUC Comparison")
     
     fig_roc = px.bar(
         model_results,
@@ -285,236 +278,289 @@ with tab3:
         text='ROC-AUC'
     )
     fig_roc.update_traces(texttemplate='%{text:.4f}', textposition='outside')
-    fig_roc.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
     st.plotly_chart(fig_roc, use_container_width=True)
-    
-    # Feature importance (if available)
-    if 'Best Model' in models:
-        st.subheader("Model Architecture")
-        st.info("""
-        **Preprocessing Pipeline:**
-        1. Label Encoding for categorical variables
-        2. StandardScaler for feature normalization
-        3. SMOTE for class balancing
-        4. Train/Test Split: 80/20
-        
-        **Key Features Used:**
-        - Emergency visits count
-        - Number of medications
-        - Hospital stay duration
-        - Previous hospital visits
-        - Age group
-        - Diabetes medication status
-        """)
 
-# TAB 4: LIVE PREDICTION
+# ==================== TAB 4: LIVE PREDICTION ====================
 with tab4:
     st.header("🔮 Live Patient Risk Prediction")
-    st.markdown("Enter patient details to predict readmission risk")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Patient Information")
-        
-        age = st.selectbox("Age Group", df['age'].unique())
+        age = st.selectbox("Age Group", sorted(df['age'].unique()))
         time_in_hospital = st.slider("Days in Hospital", 0, 20, 5)
         n_lab_procedures = st.slider("Lab Procedures", 0, 100, 20)
         n_procedures = st.slider("Number of Procedures", 0, 10, 2)
         n_medications = st.slider("Number of Medications", 0, 50, 15)
-        n_outpatient = st.slider("Outpatient Visits (past year)", 0, 20, 2)
-        n_inpatient = st.slider("Inpatient Visits (past year)", 0, 20, 1)
-        n_emergency = st.slider("Emergency Visits (past year)", 0, 10, 1)
+        n_outpatient = st.slider("Outpatient Visits", 0, 20, 2)
+        n_inpatient = st.slider("Inpatient Visits", 0, 20, 1)
+        n_emergency = st.slider("Emergency Visits", 0, 10, 1)
     
     with col2:
-        st.subheader("Medical Details")
-        
-        medical_specialty = st.selectbox("Medical Specialty", df['medical_specialty'].unique())
-        diag_1 = st.selectbox("Primary Diagnosis", df['diag_1'].unique()[:10])
-        glucose_test = st.selectbox("Glucose Test", df['glucose_test'].unique())
-        a1c_test = st.selectbox("A1C Test", df['A1Ctest'].unique())
-        change = st.selectbox("Medication Change", df['change'].unique())
-        diabetes_med = st.selectbox("Diabetes Medication", df['diabetes_med'].unique())
+        medical_specialty = st.selectbox("Medical Specialty", sorted(df['medical_specialty'].unique()))
+        diag_1 = st.selectbox("Primary Diagnosis", sorted(df['diag_1'].unique())[:10])
+        glucose_test = st.selectbox("Glucose Test", sorted(df['glucose_test'].unique()))
+        a1c_test = st.selectbox("A1C Test", sorted(df['A1Ctest'].unique()))
+        change = st.selectbox("Medication Change", sorted(df['change'].unique()))
+        diabetes_med = st.selectbox("Diabetes Medication", sorted(df['diabetes_med'].unique()))
     
-    # Predict button
     if st.button("🎯 Predict Readmission Risk"):
-        st.subheader("Prediction Results")
-        
-        # Prepare input data
         input_data = pd.DataFrame({
-            'age': [age],
-            'time_in_hospital': [time_in_hospital],
-            'n_lab_procedures': [n_lab_procedures],
-            'n_procedures': [n_procedures],
-            'n_medications': [n_medications],
-            'n_outpatient': [n_outpatient],
-            'n_inpatient': [n_inpatient],
-            'n_emergency': [n_emergency],
-            'medical_specialty': [medical_specialty],
-            'diag_1': [diag_1],
-            'glucose_test': [glucose_test],
-            'A1Ctest': [a1c_test],
-            'change': [change],
-            'diabetes_med': [diabetes_med]
+            'age': [age], 'time_in_hospital': [time_in_hospital],
+            'n_lab_procedures': [n_lab_procedures], 'n_procedures': [n_procedures],
+            'n_medications': [n_medications], 'n_outpatient': [n_outpatient],
+            'n_inpatient': [n_inpatient], 'n_emergency': [n_emergency],
+            'medical_specialty': [medical_specialty], 'diag_1': [diag_1],
+            'glucose_test': [glucose_test], 'A1Ctest': [a1c_test],
+            'change': [change], 'diabetes_med': [diabetes_med]
         })
         
-        # Encode categorical variables
         label_encoders = joblib.load('models/label_encoders.pkl')
-        for col in label_encoders.keys():
+        for col, le in label_encoders.items():
             if col in input_data.columns:
-                le = label_encoders[col]
-                # Handle unseen categories
                 input_data[col] = input_data[col].apply(lambda x: x if x in list(le.classes_) else le.classes_[0])
                 input_data[col] = le.transform(input_data[col])
         
-        # Scale features
         scaler = joblib.load('models/scaler.pkl')
         input_scaled = scaler.transform(input_data)
         
-        # Make prediction
         if 'Best Model' in models:
             model = models['Best Model']
             prediction = model.predict(input_scaled)[0]
             probability = model.predict_proba(input_scaled)[0][1]
             
-            # Display result
             col1, col2 = st.columns(2)
-            
             with col1:
                 if prediction == 1:
-                    st.error("⚠️ HIGH RISK")
-                    st.write(f"**Readmission Probability: {probability*100:.2f}%**")
+                    st.error(f"⚠️ **HIGH RISK** - {probability*100:.2f}%")
                 else:
-                    st.success("✅ LOW RISK")
-                    st.write(f"**Readmission Probability: {(1-probability)*100:.2f}%**")
-            
-            with col2:
-                # Risk gauge
-                fig_gauge = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=probability*100,
-                    domain={'x': [0, 1], 'y': [0, 1]},
-                    title={'text': "Risk Level", 'font': {'size': 24}},
-                    gauge={
-                        'axis': {'range': [None, 100]},
-                        'bar': {'color': "#e74c3c" if probability > 0.5 else "#2ecc71"},
-                        'steps': [
-                            {'range': [0, 50], 'color': "#d5f5e3"},
-                            {'range': [50, 100], 'color': "#fadbd8"}
-                        ],
-                    }
-                ))
-                st.plotly_chart(fig_gauge, use_container_width=True)
-            
-            # Recommendations
-            st.subheader("📋 Clinical Recommendations")
-            if probability > 0.5:
-                st.warning("""
-                **High-Risk Patient - Recommended Actions:**
-                - Schedule follow-up appointment within 7 days
-                - Coordinate with primary care physician
-                - Review medication regimen
-                - Consider home health services
-                - Monitor for warning signs
-                """)
-            else:
-                st.info("""
-                **Lower-Risk Patient - Standard Care:**
-                - Standard discharge procedures
-                - Routine follow-up scheduling
-                - Provide discharge instructions
-                - Monitor as per standard protocol
-                """)
+                    st.success(f"✅ **LOW RISK** - {(1-probability)*100:.2f}%")
 
-# TAB 5: INSIGHTS
+# ==================== TAB 5: INSIGHTS ====================
 with tab5:
     st.header("💡 Key Insights & Business Impact")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Clinical Insights")
-        
         st.markdown("""
-        #### 🔍 Key Findings:
-        
-        1. **Emergency Department Usage**
-           - Strong correlation with readmissions
-           - Patients with 3+ ED visits at highest risk
-        
-        2. **Medication Complexity**
-           - Higher medication counts = higher risk
-           - Indicates complex care needs
-        
-        3. **Length of Stay**
-           - Longer stays associated with readmissions
-           - May indicate severity of condition
-        
-        4. **Age Factors**
-           - Elderly patients (70-80) most vulnerable
-           - Age-specific interventions needed
+        #### 🔍 Clinical Insights:
+        1. **Emergency Department Usage** - Strong correlation with readmissions
+        2. **Medication Complexity** - Higher counts = higher risk
+        3. **Length of Stay** - Longer stays associated with readmissions
+        4. **Age Factors** - Elderly patients (70-80) most vulnerable
         """)
     
     with col2:
-        st.subheader("Business Impact")
+        estimated_cost = readmitted * 20000
+        potential_savings = estimated_cost * 0.25
         
-        st.markdown("""
-        #### 💰 Cost Savings Potential:
-        
-        - **Average readmission cost:** $15,000-$25,000
-        - **Potential reduction:** 20-30%
-        - **Annual savings:** Millions for large hospitals
-        
-        #### 📈 Operational Benefits:
-        
-        ✓ Early identification of high-risk patients
-        ✓ Targeted intervention strategies
-        ✓ Better resource allocation
-        ✓ Improved patient outcomes
-        ✓ Enhanced care coordination
-        
-        #### 🎯 Implementation Strategy:
-        
-        1. Integrate with EHR systems
-        2. Real-time risk scoring at discharge
-        3. Automated care team alerts
-        4. Personalized care plans
+        st.markdown(f"""
+        #### 💰 Business Impact:
+        - **Current Cost:** ${estimated_cost:,.0f}
+        - **Potential Savings:** ${potential_savings:,.0f}
+        - **ROI:** Within 6 months
         """)
+
+# ==================== TAB 6: FIND PATIENTS BY AGE (SIMPLIFIED!) ====================
+with tab6:
+    st.header("🔍 Find Patients by Age")
+    st.markdown("**Simply enter an age group to see ALL patients of that age with complete details**")
     
-    st.markdown("---")
+    # Simple age input
+    st.subheader("Step 1: Enter Age Group")
     
-    # Project summary
-    st.subheader("📊 Project Summary")
+    all_ages = sorted(df['age'].unique().tolist())
+    selected_age = st.selectbox(
+        "Select Age Group:",
+        ["All Ages"] + all_ages,
+        help="Choose an age group to view all patients in that category"
+    )
     
-    st.markdown("""
-    This AI-powered system demonstrates an end-to-end machine learning solution for healthcare:
-    
-    - **Dataset:** 25,000 patient records with 14 predictive features
-    - **Models Trained:** 4 different ML algorithms (Logistic Regression, Decision Tree, Random Forest, XGBoost)
-    - **Best Performance:** Logistic Regression with 64.5% ROC-AUC score
-    - **Technology Stack:** Python, scikit-learn, XGBoost, MySQL, Streamlit
-    - **Deployment Ready:** FastAPI integration available
-    
-    The system is production-ready and can be integrated into hospital workflows to reduce readmission rates and improve patient outcomes.
-    """)
-    
-    # Download links
-    st.subheader("📥 Project Resources")
-    
-    st.markdown("""
-    **Available Files:**
-    - Trained models: `models/best_model.pkl`
-    - Complete report: `report/FINAL_PROJECT_REPORT.txt`
-    - Visualizations: `plots/` folder
-    - Source code: All notebooks and scripts
-    """)
+    if selected_age != "All Ages":
+        # Filter patients by selected age
+        age_patients = df[df['age'] == selected_age].copy()
+        
+        st.success(f"✓ Found **{len(age_patients):,}** patients in age group **{selected_age}**")
+        
+        # Show summary statistics
+        st.subheader("📊 Summary for Age Group: " + selected_age)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            diabetic_count = len(age_patients[age_patients['glucose_test'] == 'yes'])
+            st.metric("Diabetic Patients", f"{diabetic_count:,}")
+        
+        with col2:
+            high_risk_count = len(age_patients[age_patients['n_emergency'] >= 3])
+            st.metric("High Risk (3+ ED)", f"{high_risk_count:,}")
+        
+        with col3:
+            readmit_count = len(age_patients[age_patients['readmitted'] == 'yes'])
+            st.metric("Readmitted", f"{readmit_count:,} ({readmit_count/len(age_patients)*100:.1f}%)")
+        
+        with col4:
+            avg_meds = age_patients['n_medications'].mean()
+            st.metric("Avg Medications", f"{avg_meds:.0f}")
+        
+        st.markdown("---")
+        
+        # Show all patients as cards
+        st.subheader(f"👥 All {len(age_patients):,} Patients - Complete Details")
+        
+        # Pagination
+        page_size = st.selectbox("Show how many patients per page?", [10, 20, 50, 100])
+        total_pages = (len(age_patients) + page_size - 1) // page_size
+        
+        if total_pages > 1:
+            selected_page = st.selectbox("Page", range(1, total_pages + 1))
+            start_idx = (selected_page - 1) * page_size
+            end_idx = start_idx + page_size
+        else:
+            start_idx = 0
+            end_idx = len(age_patients)
+        
+        patients_to_show = age_patients.iloc[start_idx:end_idx].reset_index(drop=True)
+        
+        # Display each patient as a detailed card
+        for idx, patient in patients_to_show.iterrows():
+            patient_num = start_idx + idx + 1
+            
+            with st.expander(f"👤 Patient #{patient_num} - Complete Medical Record", expanded=False):
+                # Header with key info
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.info(f"**Age:** {patient['age']}")
+                    st.info(f"**Hospital Stay:** {patient['time_in_hospital']} days")
+                
+                with col2:
+                    st.success(f"**Diabetes:** {'Yes 🩸' if patient['glucose_test']=='yes' else 'No ✅'}")
+                    st.success(f"**A1C Test:** {patient['A1Ctest']}")
+                
+                with col3:
+                    risk_level = "🔴 HIGH" if patient['n_emergency']>=3 else "🟡 MEDIUM" if patient['n_emergency']>=1 else "🟢 LOW"
+                    st.warning(f"**Risk Level:** {risk_level}")
+                    st.warning(f"**ED Visits:** {patient['n_emergency']}")
+                
+                with col4:
+                    status = "⚠️ READMITTED" if patient['readmitted']=='yes' else "✅ Not Readmitted"
+                    st.error(status)
+                
+                st.markdown("---")
+                
+                # Detailed clinical information
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("#### 💊 Medications & Treatments")
+                    st.write(f"- **Total Medications:** {patient['n_medications']}")
+                    st.write(f"- **Diabetes Medication:** {patient['diabetes_med']}")
+                    st.write(f"- **Medication Change:** {patient['change']}")
+                    st.write(f"- **Lab Procedures:** {patient['n_lab_procedures']}")
+                    st.write(f"- **Total Procedures:** {patient['n_procedures']}")
+                
+                with col2:
+                    st.markdown("#### 🏥 Hospital Usage")
+                    st.write(f"- **Emergency Visits:** {patient['n_emergency']}")
+                    st.write(f"- **Inpatient Visits:** {patient['n_inpatient']}")
+                    st.write(f"- **Outpatient Visits:** {patient['n_outpatient']}")
+                
+                st.markdown("---")
+                
+                # Diagnoses
+                st.markdown("#### 📋 Diagnoses")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.error(f"**Primary:** {patient['diag_1']}")
+                with col2:
+                    st.error(f"**Secondary:** {patient['diag_2']}")
+                with col3:
+                    st.error(f"**Tertiary:** {patient['diag_3']}")
+                
+                st.markdown("---")
+                
+                # AI Prediction
+                if 'Best Model' in models:
+                    st.markdown("#### 🤖 AI Risk Assessment")
+                    
+                    try:
+                        input_data = pd.DataFrame([{
+                            'age': patient['age'],
+                            'time_in_hospital': patient['time_in_hospital'],
+                            'n_lab_procedures': patient['n_lab_procedures'],
+                            'n_procedures': patient['n_procedures'],
+                            'n_medications': patient['n_medications'],
+                            'n_outpatient': patient['n_outpatient'],
+                            'n_inpatient': patient['n_inpatient'],
+                            'n_emergency': patient['n_emergency'],
+                            'medical_specialty': patient['medical_specialty'],
+                            'diag_1': patient['diag_1'],
+                            'glucose_test': patient['glucose_test'],
+                            'A1Ctest': patient['A1Ctest'],
+                            'change': patient['change'],
+                            'diabetes_med': patient['diabetes_med']
+                        }])
+                        
+                        label_encoders = joblib.load('models/label_encoders.pkl')
+                        for col, le in label_encoders.items():
+                            if col in input_data.columns:
+                                try:
+                                    input_data[col] = le.transform(input_data[col])
+                                except:
+                                    pass
+                        
+                        scaler = joblib.load('models/scaler.pkl')
+                        scaled = scaler.transform(input_data)
+                        
+                        model = models['Best Model']
+                        prediction = model.predict(scaled)[0]
+                        probability = model.predict_proba(scaled)[0][1]
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            if prediction == 1:
+                                st.error(f"⚠️ **HIGH RISK** - {probability*100:.2f}% readmission probability")
+                            else:
+                                st.success(f"✅ **LOW RISK** - {(1-probability)*100:.2f}% readmission probability")
+                        
+                        with col2:
+                            gauge = go.Figure(go.Indicator(
+                                mode="gauge+number",
+                                value=probability*100,
+                                gauge={'axis': {'range': [None, 100]}},
+                                bar={'color': "#e74c3c" if probability > 0.5 else "#2ecc71"}
+                            ))
+                            st.plotly_chart(gauge, use_container_width=True)
+                        
+                        # Risk factors
+                        risk_factors = []
+                        if patient['n_emergency'] >= 3:
+                            risk_factors.append("Frequent ED user")
+                        if patient['n_medications'] > 20:
+                            risk_factors.append("Complex medications")
+                        if patient['time_in_hospital'] > 7:
+                            risk_factors.append("Extended stay")
+                        if patient['glucose_test'] == 'yes':
+                            risk_factors.append("Diabetic")
+                        
+                        if risk_factors:
+                            st.warning(f"**Risk Factors:** {', '.join(risk_factors)}")
+                    
+                    except Exception as e:
+                        st.info("AI prediction available soon")
+    else:
+        st.info("👆 Select an age group above to view patients")
 
 # Footer
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center; color: gray;'>
-    <p><strong>Hospital Readmission Prediction System</strong></p>
-    <p>Built with ❤️ using AI & Machine Learning for Better Healthcare Outcomes</p>
-    <p>Data Science Project | 2026</p>
+st.markdown(f"""
+<div style='text-align: center; color: gray; padding: 20px;'>
+    <p><strong>🏥 Hospital Readmission Prediction System</strong></p>
+    <p>Built with ❤️ using AI & Machine Learning | Data Science Project 2026</p>
+    <p>Last Updated: {datetime.now().strftime("%B %Y")}</p>
 </div>
 """, unsafe_allow_html=True)
