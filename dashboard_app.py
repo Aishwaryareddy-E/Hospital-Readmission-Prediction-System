@@ -26,8 +26,11 @@ st.set_page_config(
 )
 
 # MySQL connection
-mysql_password = 'Aishu935359'
-engine = create_engine(f'mysql+mysqlconnector://root:{mysql_password}@localhost/hospital_db')
+try:
+    mysql_password = 'Aishu935359'
+    engine = create_engine(f'mysql+mysqlconnector://root:{mysql_password}@localhost/hospital_db')
+except Exception:
+    engine = None
 
 # Load trained models
 @st.cache_resource
@@ -54,10 +57,14 @@ def load_models():
 # Load data from database
 @st.cache_data
 def load_data():
-    """Load patient data from MySQL"""
-    query = "SELECT * FROM patients"
-    df = pd.read_sql_query(query, engine)
-    return df
+    """Load patient data from MySQL or fallback to CSV"""
+    try:
+        query = "SELECT * FROM patients"
+        df = pd.read_sql_query(query, engine)
+        return df
+    except Exception as e:
+        # Fallback for Streamlit Cloud deployment where localhost DB doesn't exist
+        return pd.read_csv("data/hospital_data.csv")
 
 # Sidebar
 st.sidebar.title("🏥 Hospital Readmission AI")
