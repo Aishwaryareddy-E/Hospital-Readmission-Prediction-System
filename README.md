@@ -1,3 +1,6 @@
+DIRECT LINK  :  https://aishwaryareddy-e-hospital-readmission-pred-dashboard-app-hb4yby.streamlit.app/
+
+
 # 🏥 Indian Hospital Readmission Prevention System
 
 A complete machine learning system that predicts which patients are at high risk of being readmitted to the hospital within 30 days, helping healthcare providers intervene early and improve patient outcomes.
@@ -144,8 +147,7 @@ hospital-readmission-project/
 │   ├── shap_summary_plot.png
 │   └── ... (more SHAP plots)
 │
-├── dashboard/                      # Tableau dashboard files
-│   └── (Add your Tableau workbook here)
+├── dashboard/                     
 │
 ├── report/                         # Reports and documentation
 │   ├── eda_insights.txt           # EDA findings
