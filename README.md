@@ -527,18 +527,6 @@ For a typical 500-bed hospital:
 - Avoided penalties: $500,000
 - **Total annual savings: $9.5 million**
 
-### Implementation Timeline
-
-| Phase | Duration | Activities |
-|-------|----------|------------|
-| Setup & Data Loading | Week 1 | Install tools, load data, SQL exploration |
-| EDA | Week 2 | Visualizations, pattern discovery |
-| Model Training | Week 3 | Preprocessing, training, evaluation |
-| Explainability | Week 4 | SHAP analysis, validation |
-| Deployment | Week 5 | API setup, testing, integration |
-| Pilot Program | Week 6-8 | Test in one department |
-| Full Rollout | Week 9-12 | Hospital-wide deployment |
-
 ### Stakeholder Benefits
 
 **For Hospital Administrators:**
