@@ -1,0 +1,10 @@
+
+DATASET OVERVIEW
+================
+Total Patients: 25,000
+Features: 17
+
+TARGET VARIABLE DISTRIBUTION:
+
+Not Readmitted (NO): 13,246 (53.0%)
+Readmitted (YES): 11,754 (47.0%)
