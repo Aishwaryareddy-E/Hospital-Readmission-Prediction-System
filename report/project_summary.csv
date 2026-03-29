@@ -1,0 +1,2 @@
+total_patients,features,readmission_rate,best_model,best_roc_auc,best_accuracy
+25000,14,47.016000000000005,Logistic Regression,0.6449834042492381,0.6094
